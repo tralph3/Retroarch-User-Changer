@@ -12,7 +12,6 @@ from tkinter import messagebox
 import configparser
 import os
 import shutil
-from distutils.dir_util import copy_tree
 
 class User:
 	def __init__(self, name, ID):
