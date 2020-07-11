@@ -23,7 +23,7 @@ Currently, the following folders and files will be saved on each user:
 # Can I choose what to save on each user?
 Currently, no. I'm trying to figure out a way to let users decide what to save, but this isn't supported yet. These are the files and folders that will be saved and you can't change it (unless you modify the code).
 
-#Disclaimer
+# Disclaimer
 While the risk of data loss is low or non-existent, there may be an exception I haven't caught or whatever. I still need more people using the program to have a better sense of its reliability. In the case you do lose files, don't hold me accountble for it. Make backups before trying it.
 
 
