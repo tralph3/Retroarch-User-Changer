@@ -115,12 +115,19 @@ def askDirectory(entry, section, key):
 def renameUser(userID):
 	if userID > 0:
 		def rename(newName):
-			config.set("User." + str(userID), "name", newName)
-			with open("config.cfg", "w") as configFile:
-				config.write(configFile)
-			refreshConfigFile()
-			renameUserWindow.destroy()
-			mainWindow.buildUsers()
+			newName = newName.lstrip().rstrip()
+			for i in config:
+				if not config.has_option(i, "name"):
+					continue
+				if config[i]["name"].lower() == newName.lower():
+					return
+			if newName != "":
+				config.set("User." + str(userID), "name", newName)
+				with open("config.cfg", "w") as configFile:
+					config.write(configFile)
+				refreshConfigFile()
+				renameUserWindow.destroy()
+				mainWindow.buildUsers()
 
 		mainWindow.launchSubWindow()
 		renameUserWindow = mainWindow.subWindow
