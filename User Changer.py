@@ -279,8 +279,9 @@ ed over to the RetroArch folder.
 * Deleting a user will delete all of its configuration. This cannot be \
 reverted!
 
-* Do not manually modify the config file! You could cause data loss!
+* DO NOT manually modify the config file! You could cause data loss!
 
+* DO NOT use this program while RetroArch is open.
 
 -----------------------------------------------
 
