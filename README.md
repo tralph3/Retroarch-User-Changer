@@ -13,12 +13,12 @@ I tested the program a lot trying to break it and fixing the bugs that popped up
 # What is being saved on each user?
 Currently, the following folders and files will be saved on each user:
 
- * saves (contains savefiles)
- * states (contains savestates)
  * config (contains remaps)
+ * saves (contains savefiles)
  * screenshots (contains screenshots)
+ * states (contains savestates)
  * retroarch.cfg (contains the general config of the whole program)
- * retroarch-core-config.cfg (contains specific configuration for each core)
+ * retroarch-core-options.cfg (contains specific configuration for each core)
 
 # Can I choose what to save on each user?
 Currently, no. I'm trying to figure out a way to let users decide what to save, but this isn't supported yet. These are the files and folders that will be saved and you can't change it (unless you modify the code).
