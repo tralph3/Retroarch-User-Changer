@@ -149,11 +149,18 @@ def swapFiles(newActiveUserID, prevActiveUserID=None):
 			prevActiveUserDirectory = None
 		retroarchDirectory = mainWindow.getRetroarchDirectory()
 		
-		#Copy files from retroarch to the previous active user
+
 		if prevActiveUserDirectory is not None:
 			for file in filesToCopy:
+				#Remove files on the previous active user directory
+				if os.path.isdir(os.path.join(prevActiveUserDirectory, file)):
+					shutil.rmtree(os.path.join(prevActiveUserDirectory, file))
+				else:
+					os.remove(os.path.join(prevActiveUserDirectory, file))
+
+				#Copy files from retroarch to the previous active user
 				if os.path.isdir(os.path.join(retroarchDirectory, file)):
-					copy_tree(os.path.join(retroarchDirectory, file), os.path.join(prevActiveUserDirectory, file))
+					shutil.copytree(os.path.join(retroarchDirectory, file), os.path.join(prevActiveUserDirectory, file))
 				else:
 					shutil.copy(os.path.join(retroarchDirectory, file), os.path.join(prevActiveUserDirectory, file))
 
@@ -178,6 +185,8 @@ def setAsActive(newUserID, prevUserID=None):
 			if config.has_option(user, "active"):
 				if config[user]["active"] == "True":
 					prevUserID = config[user]["id"]
+					if prevUserID == newUserID:
+						return
 				config.set(user, "active", False)
 
 		config.set("User." + str(newUserID), "active", True)
