@@ -14,29 +14,6 @@ import os
 import shutil
 from distutils.dir_util import copy_tree
 
-def refreshConfigFile():
-	global config
-	global configFilePath
-	
-	config = configparser.RawConfigParser()
-	config.read(configFilePath)
-
-def askDirectory(entry, section, key):
-	selectedDirectory = filedialog.askdirectory()
-	if selectedDirectory != "":
-		entry.config(state="normal")
-		entry.delete(0, "end")
-		entry.insert(0, selectedDirectory)
-		entry.config(state="disabled")
-		
-		#Write the entered directory to the cfg
-		config[section] = {key: entry.get()}
-		with open("config.cfg", "w") as configFile:
-			config.write(configFile)
-		
-		refreshConfigFile()
-	return
-
 class User:
 	def __init__(self, name, ID):
 		self.name = name
@@ -63,6 +40,7 @@ class MainWindow:
 		if(config["Retroarch"]["directory"] == ""):
 			self.retroarchDirectoryEntry.insert(0, "Enter RetroArch directory")
 			self.retroarchDirectoryEntry.config(state="disabled")
+			messagebox.showinfo(title="Attention!", message="Before doing anything, enter the RetroArch directory. You will probably make a mess if you don't.", icon="info")
 		else:
 			self.retroarchDirectoryEntry.insert(0, config["Retroarch"]["directory"])
 			self.retroarchDirectoryEntry.config(state="disabled")
@@ -111,6 +89,29 @@ class MainWindow:
 	
 	def getRetroarchDirectory(self):
 		return self.retroarchDirectoryEntry.get()
+
+def refreshConfigFile():
+	global config
+	global configFilePath
+	
+	config = configparser.RawConfigParser()
+	config.read(configFilePath)
+
+def askDirectory(entry, section, key):
+	selectedDirectory = filedialog.askdirectory()
+	if selectedDirectory != "":
+		entry.config(state="normal")
+		entry.delete(0, "end")
+		entry.insert(0, selectedDirectory)
+		entry.config(state="disabled")
+		
+		#Write the entered directory to the cfg
+		config[section] = {key: entry.get()}
+		with open("config.cfg", "w") as configFile:
+			config.write(configFile)
+		
+		refreshConfigFile()
+	return
 
 def renameUser(userID):
 	if userID > 0:
@@ -273,7 +274,6 @@ Thanks for using my program! For more, visit github.com/tralph3
 
 	helpFrame.pack()
 	help.pack(side = "top")
-
 
 def assignID():
 	candidateID = 1
