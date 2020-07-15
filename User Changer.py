@@ -48,7 +48,7 @@ class MainWindow:
 
 		self.addUserButton = Button(self.bottomFrame, text="Add User", command=createAddUserWindow)
 		self.setUserButton = Button(self.bottomFrame, text="Set as active user", command=lambda : setAsActive(selectedUser.get()))
-		self.renameUserButton = Button(self.bottomFrame, text="Rename", command=lambda : renameUser(selectedUser.get()))
+		self.editUserButton = Button(self.bottomFrame, text="Edit", command=lambda : editUser(selectedUser.get()))
 		self.deleteUserButton = Button(self.bottomFrame, text="Delete selected user", command=lambda : deleteUser(selectedUser.get()))
 		
 		self.helpButton.pack(side = "top", anchor = "n")
@@ -59,7 +59,7 @@ class MainWindow:
 		
 		self.addUserButton.pack(side = "left")
 		self.setUserButton.pack(side = "left")
-		self.renameUserButton.pack(side = "right")
+		self.editUserButton.pack(side = "right")
 		self.deleteUserButton.pack(side = "right")
 
 		self.topFrame.pack(side = "top", fill = "x")
@@ -74,7 +74,7 @@ class MainWindow:
 		userList.clear()
 		for user in config:
 			if config.has_option(user, "ID"):
-				if config[user]["active"] == "True":
+				if toBoolean(config[user]["active"]):
 					addUser(config[user]["name"] + " (Active)", config[user]["id"])
 					userList[len(userList) - 1].entry.select()
 					continue
@@ -88,6 +88,14 @@ class MainWindow:
 	
 	def getRetroarchDirectory(self):
 		return self.retroarchDirectoryEntry.get()
+
+def toBoolean(string):
+	if string == "True":
+		return True
+	elif string == "False":
+		return False
+	else:
+		return None
 
 def refreshConfigFile():
 	global config
@@ -112,88 +120,177 @@ def askDirectory(entry, section, key):
 		refreshConfigFile()
 	return
 
-def renameUser(userID):
+def editUser(userID):
 	if userID > 0:
-		def rename(newName):
+		def edit(newName):
 			newName = newName.lstrip().rstrip()
 			for i in config:
 				if not config.has_option(i, "name"):
 					continue
-				if config[i]["name"].lower() == newName.lower():
+				if config[i]["name"].lower() == newName.lower() and config[i]["id"] != str(userID):
 					return
 			if newName != "":
-				config.set("User." + str(userID), "name", newName)
+				userSection = "User." + str(userID)
+				config.set(userSection, "name", newName)
+				config.set(userSection, "config", remapsOverridesCheckVar.get())
+				config.set(userSection, "saves", savesCheckVar.get())
+				config.set(userSection, "states", statesCheckVar.get())
+				config.set(userSection, "screenshots", screenshotsCheckVar.get())
+				config.set(userSection, "retroarch.cfg", retroarchConfigCheckVar.get())
+				config.set(userSection, "retroarch-core-options.cfg", retroarchCoreConfigCheckVar.get())
+
 				with open("config.cfg", "w") as configFile:
 					config.write(configFile)
 				refreshConfigFile()
-				renameUserWindow.destroy()
+
+				createUserFolder(config[userSection]["directory"], userSection)
+
+				editUserWindow.destroy()
 				mainWindow.buildUsers()
 
 		mainWindow.launchSubWindow()
-		renameUserWindow = mainWindow.subWindow
-		renameUserWindow.title("Rename User")
-		renameUserWindow.resizable(width = False, height = False)
-		
-		mainFrame = Frame(renameUserWindow, padx = 20, pady = 20)
-		nameLabel = Label(mainFrame, text="New username:")
+		editUserWindow = mainWindow.subWindow
+		editUserWindow.title("Edit User")
+		editUserWindow.resizable(width = False, height = False)
+
+		mainFrame = Frame(editUserWindow, padx = 20, pady = 20)
+		nameLabel = Label(mainFrame, text="Change username:")
 		nameEntry = Entry(mainFrame)
-		addUserButton = Button(mainFrame, text="Rename...", command=lambda : rename(nameEntry.get()))
+		nameEntry.insert(0, config.get("User." + str(userID), "name"))
+		applyEditsButton = Button(mainFrame, text="Apply...", command=lambda : edit(nameEntry.get()))
 
 		nameLabel.pack(side = "top", anchor = "nw")
 		nameEntry.pack(side = "top", anchor = "nw")
-		addUserButton.pack(side = "bottom", anchor = "s")
+
+		chooseLabel = Label(mainFrame, text="Choose what to store:")
+
+		savesCheckVar = BooleanVar()
+		savesCheck = Checkbutton(mainFrame, text="Save Games", variable=savesCheckVar)
+
+		statesCheckVar = BooleanVar()
+		statesCheck = Checkbutton(mainFrame, text="Save States", variable=statesCheckVar)
+
+		retroarchConfigCheckVar = BooleanVar()
+		retroarchConfigCheck = Checkbutton(mainFrame, text="RetroArch Configuration", variable=retroarchConfigCheckVar)
+
+		retroarchCoreConfigCheckVar = BooleanVar()
+		retroarchCoreConfigCheck = Checkbutton(mainFrame, text="Cores Configuration", variable=retroarchCoreConfigCheckVar)
+
+		screenshotsCheckVar = BooleanVar()
+		screenshotsCheck = Checkbutton(mainFrame, text="Screenshots", variable=screenshotsCheckVar)
+
+		remapsOverridesCheckVar = BooleanVar()
+		remapsOverridesCheck = Checkbutton(mainFrame, text="Remaps and Overrides", variable=remapsOverridesCheckVar)
+
+		addUserButton = Button(mainFrame, text="Add...", command=lambda : addCloseAndWrite(nameEntry.get()))
+
+		nameLabel.pack(side = "top", anchor = "nw")
+		nameEntry.pack(side = "top", anchor = "nw")
+
+		chooseLabel.pack(side = "top", anchor = "nw")
+		savesCheck.pack(side = "top", anchor = "nw")
+		statesCheck.pack(side = "top", anchor = "nw")
+		retroarchConfigCheck.pack(side = "top", anchor = "nw")
+		retroarchCoreConfigCheck.pack(side = "top", anchor = "nw")
+		screenshotsCheck.pack(side = "top", anchor = "nw")
+		remapsOverridesCheck.pack(side = "top", anchor = "nw")
+
+		applyEditsButton.pack(side = "bottom", anchor = "s")
 		mainFrame.pack()
 
-def swapFiles(newActiveUserID, prevActiveUserID=None):
-		global filesToCopy
+def swapFiles(newUserID, prevUserID=None):
+	global standardFiles
+	global standardFolders
 
-		newActiveUserDirectory = "userID_" + str(newActiveUserID)
+	retroarchDirectory = mainWindow.getRetroarchDirectory()
 
-		if prevActiveUserID is not None:
-			prevActiveUserDirectory = "userID_" + str(prevActiveUserID)
-		else:
-			prevActiveUserDirectory = None
-		retroarchDirectory = mainWindow.getRetroarchDirectory()
-		
+	newUserSection = "User." + str(newUserID)
+	newUserFiles = []
+	newUserFolders = []
+	newUserDirectory = config.get(newUserSection, "directory")
 
-		if prevActiveUserDirectory is not None:
-			for file in filesToCopy:
-				#Remove files on the previous active user directory
-				if os.path.isdir(os.path.join(prevActiveUserDirectory, file)):
-					shutil.rmtree(os.path.join(prevActiveUserDirectory, file))
-				else:
-					os.remove(os.path.join(prevActiveUserDirectory, file))
+	#Generate folders and files lists
+	for file in standardFiles:
+		if toBoolean(config.get(newUserSection, file)):
+			newUserFiles.append(file)
+	for folder in standardFolders:
+		if toBoolean(config.get(newUserSection, folder)):
+			newUserFolders.append(folder)
 
-				#Copy files from retroarch to the previous active user
-				if os.path.isdir(os.path.join(retroarchDirectory, file)):
-					shutil.copytree(os.path.join(retroarchDirectory, file), os.path.join(prevActiveUserDirectory, file))
-				else:
-					shutil.copy(os.path.join(retroarchDirectory, file), os.path.join(prevActiveUserDirectory, file))
+	#If there is a previous user
+	if prevUserID is not None:
+		prevUserSection = "User." + str(prevUserID)
+		prevUserFiles = []
+		prevUserFolders = []
+		prevUserDirectory = config.get(prevUserSection, "directory")
 
-		#Remove files and folders from retroarch directory
-		for file in filesToCopy:
-			if os.path.isdir(os.path.join(retroarchDirectory, file)):
-				shutil.rmtree(os.path.join(retroarchDirectory, file))
-			else:
+		#Generate folders and files lists
+		for file in standardFiles:
+			if toBoolean(config.get(prevUserSection, file)):
+				prevUserFiles.append(file)
+		for folder in standardFolders:
+			if toBoolean(config.get(prevUserSection, folder)):
+				prevUserFolders.append(folder)
+
+		for folder in prevUserFolders:
+			#Remove folders on the previous active user directory
+			shutil.rmtree(os.path.join(prevUserDirectory, folder))
+			#Copy folders from retroarch directory
+			shutil.copytree(os.path.join(retroarchDirectory, folder), os.path.join(prevUserDirectory, folder))
+
+		for file in prevUserFiles:
+			#Remove files from previous active user directory
+			os.remove(os.path.join(prevUserDirectory, file))
+			#Copy files from retroarch directory
+			shutil.copy(os.path.join(retroarchDirectory, file), os.path.join(prevUserDirectory, file))
+
+		for folder in newUserFolders:
+			#Remove folders from retroarch directory
+			shutil.rmtree(os.path.join(retroarchDirectory, folder))
+			#Copy folders from new active user to retroarch
+			shutil.copytree(os.path.join(newUserDirectory, folder), os.path.join(retroarchDirectory, folder))
+
+		for file in newUserFiles:
+			#Remove files from retroarch directory
+			os.remove(os.path.join(retroarchDirectory, file))
+			#Copy files from new active user to retroarch
+			shutil.copy(os.path.join(newUserDirectory, file), os.path.join(retroarchDirectory, file))
+
+	#If there's not a previous user
+	else:
+		for folder in newUserFolders:
+			#Remove folders from retroarch directory
+			shutil.rmtree(os.path.join(retroarchDirectory, folder))
+			#Copy folders from new active user to retroarch
+			shutil.copytree(os.path.join(newUserDirectory, folder), os.path.join(retroarchDirectory, folder))
+
+		for file in newUserFiles:
+			#Remove files from retroarch directory
+			if os.path.exists(os.path.join(retroarchDirectory, file)):
 				os.remove(os.path.join(retroarchDirectory, file))
+			#Copy files from new active user to retroarch
+			shutil.copy(os.path.join(newUserDirectory, file), os.path.join(retroarchDirectory, file))
 
-		#Copy files from new active user to retroarch
-		for file in filesToCopy:
-			if os.path.isdir(os.path.join(newActiveUserDirectory, file)):
-				shutil.copytree(os.path.join(newActiveUserDirectory, file), os.path.join(retroarchDirectory, file))
-			else:
-				shutil.copy(os.path.join(newActiveUserDirectory, file), os.path.join(retroarchDirectory, file))
+	for folder in standardFolders:
+		if not folder in newUserFolders:
+			shutil.rmtree(os.path.join(retroarchDirectory, folder))
+			os.mkdir(os.path.join(retroarchDirectory, folder))
+	for file in standardFiles:
+		if not file in newUserFiles and os.path.exists(os.path.join(retroarchDirectory, file)):
+			os.remove(os.path.join(retroarchDirectory, file))
+			open(os.path.join(retroarchDirectory, file), "a").close()
 
 def setAsActive(newUserID, prevUserID=None):
 	global userList
 	if newUserID > 0:
 		for user in config:
 			if config.has_option(user, "active"):
-				if config[user]["active"] == "True":
+				if toBoolean(config[user]["active"]):
 					prevUserID = config[user]["id"]
 					if prevUserID == newUserID:
 						return
-				config.set(user, "active", False)
+					config.set(user, "active", False)
+					break
 
 		config.set("User." + str(newUserID), "active", True)
 		with open("config.cfg", "w") as configFile:
@@ -264,7 +361,7 @@ def createHelpWindow():
 	help = Message(helpFrame, text="""Things you should know!
 
 
-* Put this program on a folder of its own, it will create sub-directori\
+* Put this program on a folder of its own, it will create sub-directory\
 es and it's going to be messy if you leave it anywhere.
 
 * New users will get the current configuration found on the RetroArch d\
@@ -276,8 +373,18 @@ ped if there's no previous active user). Then, the configuration in Ret\
 roArch is deleted, and the configuration of the new active user is copi\
 ed over to the RetroArch folder.
 
-* Deleting a user will delete all of its configuration. This cannot be \
-reverted!
+* If you choose to not store something in a user, every time you use tha\
+t user the thing you chose to not store will be empty or default. (I.E, \
+if you choose to not store saves every time you set that user as active \
+it will have no saves).
+
+* If you later choose to stop storing some folder or file on any user, t\
+he currently stored data for those files and folders for that user will \
+be deleted. If you want to store new data, the current data found in Ret\
+roArch will be copied over.
+
+* Deleting a user will delete all of its saves and configurations. This\
+ cannot be reverted!
 
 * DO NOT manually modify the config file! You could cause data loss!
 
@@ -304,10 +411,50 @@ def assignID():
 		else:
 			return candidateID
 
+def createUserFolder(directory, section):
+	global standardFiles
+	global standardFolders
+
+	if not os.path.exists(directory):
+		os.mkdir(directory)
+
+	retroarchDirectory = mainWindow.getRetroarchDirectory()
+
+	userFiles = []
+	userFolders = []
+
+	#Generate folders and files lists
+	for file in standardFiles:
+		if toBoolean(config.get(section, file)):
+			userFiles.append(file)
+	for folder in standardFolders:
+		if toBoolean(config.get(section, folder)):
+			userFolders.append(folder)
+
+	for folder in userFolders:
+		#Copy folders from retroarch directory
+		if not os.path.exists(os.path.join(directory, folder)):
+			shutil.copytree(os.path.join(retroarchDirectory, folder), os.path.join(directory, folder))
+
+
+	for file in userFiles:
+		#Copy files from retroarch directory
+		if not os.path.exists(os.path.join(directory, file)):
+			shutil.copy(os.path.join(retroarchDirectory, file), os.path.join(directory, file))
+
+	for folder in standardFolders:
+		if not folder in userFolders and os.path.exists(os.path.join(directory, folder)):
+			shutil.rmtree(os.path.join(directory, folder))
+	for file in standardFiles:
+		if not file in userFiles and os.path.exists(os.path.join(directory, file)):
+			os.remove(os.path.join(directory, file))
+
+
 def createAddUserWindow():
 	global userList
-	global filesToCopy
-	
+	global standardFiles
+	global standardFolders
+
 	def addCloseAndWrite(userName):
 		userName = userName.lstrip().rstrip()
 		for i in config:
@@ -319,26 +466,24 @@ def createAddUserWindow():
 			ID = assignID()
 			section = "User." + str(ID)
 			directory = "userID_" + str(ID)
-			
+
 			config.add_section(section)
 			config.set(section, "name", userName)
 			config.set(section, "id", ID)
 			config.set(section, "directory", directory)
+			config.set(section, "config", remapsOverridesCheckVar.get())
+			config.set(section, "saves", savesCheckVar.get())
+			config.set(section, "states", statesCheckVar.get())
+			config.set(section, "screenshots", screenshotsCheckVar.get())
+			config.set(section, "retroarch.cfg", retroarchConfigCheckVar.get())
+			config.set(section, "retroarch-core-options.cfg", retroarchCoreConfigCheckVar.get())
 			config.set(section, "active", False)
 
 			with open("config.cfg", "w") as configFile:
 				config.write(configFile)
 			refreshConfigFile()
-			
-			os.mkdir(directory)
-			
-			retroarchDirectory = mainWindow.getRetroarchDirectory()
 
-			for file in filesToCopy:
-				if os.path.isdir(os.path.join(retroarchDirectory, file)):
-					shutil.copytree(os.path.join(retroarchDirectory, file), os.path.join(directory, file))
-				else:
-					shutil.copy(os.path.join(retroarchDirectory, file), os.path.join(directory, file))
+			createUserFolder(directory, section)
 
 			addUser(userName, ID)
 			addUserWindow.destroy()
@@ -352,10 +497,41 @@ def createAddUserWindow():
 	mainFrame = Frame(addUserWindow, padx = 20, pady = 20)
 	nameLabel = Label(mainFrame, text="User Name:")
 	nameEntry = Entry(mainFrame)
+
+	chooseLabel = Label(mainFrame, text="Choose what to store:")
+
+	savesCheckVar = BooleanVar()
+	#savesCheckVar.set(True).get()
+	savesCheck = Checkbutton(mainFrame, text="Save Games", variable=savesCheckVar)
+
+	statesCheckVar = BooleanVar()
+	statesCheck = Checkbutton(mainFrame, text="Save States", variable=statesCheckVar)
+
+	retroarchConfigCheckVar = BooleanVar()
+	retroarchConfigCheck = Checkbutton(mainFrame, text="RetroArch Configuration", variable=retroarchConfigCheckVar)
+
+	retroarchCoreConfigCheckVar = BooleanVar()
+	retroarchCoreConfigCheck = Checkbutton(mainFrame, text="Cores Configuration", variable=retroarchCoreConfigCheckVar)
+
+	screenshotsCheckVar = BooleanVar()
+	screenshotsCheck = Checkbutton(mainFrame, text="Screenshots", variable=screenshotsCheckVar)
+
+	remapsOverridesCheckVar = BooleanVar()
+	remapsOverridesCheck = Checkbutton(mainFrame, text="Remaps and Overrides", variable=remapsOverridesCheckVar)
+
 	addUserButton = Button(mainFrame, text="Add...", command=lambda : addCloseAndWrite(nameEntry.get()))
 
 	nameLabel.pack(side = "top", anchor = "nw")
 	nameEntry.pack(side = "top", anchor = "nw")
+
+	chooseLabel.pack(side = "top", anchor = "nw")
+	savesCheck.pack(side = "top", anchor = "nw")
+	statesCheck.pack(side = "top", anchor = "nw")
+	retroarchConfigCheck.pack(side = "top", anchor = "nw")
+	retroarchCoreConfigCheck.pack(side = "top", anchor = "nw")
+	screenshotsCheck.pack(side = "top", anchor = "nw")
+	remapsOverridesCheck.pack(side = "top", anchor = "nw")
+
 	addUserButton.pack(side = "bottom", anchor = "s")
 	mainFrame.pack()
 
@@ -363,7 +539,8 @@ currentFileDir = os.path.dirname(os.path.realpath(__file__))
 os.chdir(currentFileDir)
 
 userList = []
-filesToCopy = ["retroarch.cfg", "retroarch-core-options.cfg", "saves", "states", "config", "screenshots"]
+standardFolders = ["saves", "states", "config", "screenshots"]
+standardFiles = ["retroarch.cfg", "retroarch-core-options.cfg"]
 
 config = configparser.RawConfigParser()
 configFilePath = r'config.cfg'
