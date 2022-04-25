@@ -1,3 +1,8 @@
+# DO NOT USE THIS PROGRAM
+This program is no more than an abandoned experiment that is most likely prone to failure. I would not recommend anyone to use it. Backing up folders manually is probably better than using this. I have no intentions of fixing this software. The proper solution would be a user system integrated in RetroArch itself, and I don't know if that's in their sights (probably not at the moment).
+
+With that said, if you still want to use this, do so at your own risk. I recommend reading the code beforehand. No further development will take place. You have been warned.
+
 # Retroarch User Changer
 RetroArch, now for the whole family.
 
